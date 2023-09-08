@@ -5,9 +5,9 @@
 #include <deque>
 //! \brief An in-order byte stream.
 
-//! Bytes are written on the "input" side and read from the "output"
-//! side.  The byte stream is finite: the writer can end the input,
-//! and then no more bytes can be written.
+//  说明:实现一个字节流管道，一端读，一端写，容量大小为capacity,用deque,队列来实现
+//  两个符号用来停止写和停止读，，两个整数标识已经写和读了多少字节
+
 class ByteStream {
   private:
     // Your code here -- add private members as necessary.
@@ -17,12 +17,8 @@ class ByteStream {
     bool _end_read;
     size_t _written_bytes;
     size_t _read_bytes;
-    // Hint: This doesn't need to be a sophisticated data structure at
-    // all, but if any of your tests are taking longer than a second,
-    // that's a sign that you probably want to keep exploring
-    // different approaches.
 
-    bool _error{};  //!< Flag indicating that the stream suffered an error.
+    bool _error{};
 
   public:
     //! Construct a stream with room for `capacity` bytes.
