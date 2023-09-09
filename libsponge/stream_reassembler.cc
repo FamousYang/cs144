@@ -30,6 +30,8 @@ void StreamReassembler::check_contiguous() {
         tmp += _buffer.front();
         _buffer.pop_front();
         _bitmap.pop_front();
+
+        //保持缓冲区始终为capacity，因为不仅是两头插数据，还会根据下标来索引
         _buffer.push_back('\0');
         _bitmap.push_back(false);
     }
@@ -45,20 +47,23 @@ void StreamReassembler::check_contiguous() {
 //! possibly out-of-order, from the logical stream, and assembles any newly
 //! contiguous substrings and writes them into the output stream in order.
 void StreamReassembler::push_substring(const string &data, const size_t index, const bool eof) {
-    // 表示这是最后一个字符串，但也有可能是提前到达的最后一个子串。
-    if (eof) {
-        _eof = true;             //先设置已经看见过最后一个串了，但不一定最后位置的信息被缓存下来了
-    }
-    size_t len = data.length();
-
-    // 对应于一开始就是空串的边界情况。
-    if (len == 0 && _eof && _unass_size == 0) {
-        _output.end_input();
-        return;
-    }
     // ignore invalid index
     //到来的子串序号过大，任何一个字节都存放不下，直接丢弃
     if (index >= _unass_base + _capacity) return;
+
+    size_t len = data.length();
+
+    // 对应于一开始就是空串的边界情况。
+    if (len == 0 && eof && _unass_size == 0) {
+        _eof = true;
+        _output.end_input();
+        return;
+    }
+
+    // 表示这是最后一个字符串，但也有可能是提前到达的最后一个子串。
+    if (eof) {
+        _eof = true;
+    }
 
     //如果序号合理并且 大于等于期待的 
     if (index >= _unass_base) {
@@ -66,9 +71,9 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
         int offset = index - _unass_base;
         //只能放得下这个串中，比管道容量-距离，小的那部分
         size_t real_len = min(len, _output.remaining_capacity() - offset);
-        //如果串长度较大，超过了管道的可用空间说明除了期待的字节没到以外，后面还有更多，那如果之前提前见到了eof，现在要改回来，防止清空缓存区后直接结束
+        //如果串长度较大，超过了管道的可用空间说明除了期待的字节没到以外，后面还有更多
         if (real_len < len) {
-            _eof = false;  //终止那条到的太早了，数据没保留下来，只有_eof被改掉了，现在发现后面应该还有，所以改回来
+            _eof = false;  //终止到的太早了，后面截取的数据没保留下来，只有_eof被改掉了，现在发现后面应该还有，所以改回来
         }
         //空offset个位置，把字节装进缓冲区
         for (size_t i = 0; i < real_len; i++) {
@@ -86,7 +91,7 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
         if (real_len < len - offset) {
             _eof = false;
         }
-        //之所以不把后面的也保存在缓冲区是防止连续字节过长，导致check_contiguous()的时候大量字节从缓存弹出而管道没有能力接受，丢失数据
+        //缓存区大小和管道相同
         for (size_t i = 0; i < real_len; i++) {
             if (_bitmap[i])
                 continue;
@@ -96,7 +101,7 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
         }
     }
     check_contiguous();
-    //正常判断是否终止的入口，不需要加长度为0的边界判断
+    //写管道后，正常判断是否终止的入口
     if (_eof && _unass_size == 0) {
         _output.end_input();
     }
