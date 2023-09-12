@@ -110,3 +110,5 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
 size_t StreamReassembler::unassembled_bytes() const { return _unass_size; }
 
 bool StreamReassembler::empty() const { return _unass_size == 0; }
+
+uint64_t StreamReassembler::ack_index() const {return _unass_base;}
